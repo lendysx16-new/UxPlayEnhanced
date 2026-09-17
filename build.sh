@@ -32,6 +32,9 @@ fi
 echo "=== Copying embedded mDNS source ==="
 cp "$SCRIPT_DIR/src/dnssd_embedded.c" "$SCRIPT_DIR/lib/uxplay/lib/dnssd_embedded.c"
 
+echo "=== Enabling mDNS transport diagnostics ==="
+"$BUILD_PYTHON" "$SCRIPT_DIR/patch_mdns_debug.py"
+
 echo "=== Patching CMakeLists.txt for embedded mDNS ==="
 "$BUILD_PYTHON" "$SCRIPT_DIR/patch_cmake.py"
 
