@@ -11,8 +11,6 @@
 
 set -e
 
-# Make the script work from either the MSYS2 MinGW64 shell or a plain MSYS2
-# shell launched by a Windows shortcut.
 export PATH="/mingw64/bin:/usr/bin:$PATH"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -57,23 +55,17 @@ fi
 rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR/lib/gstreamer-1.0"
 
-# Copy executable
 cp "$BUILD_DIR/uxplay.exe" "$DIST_DIR/"
 cp "$SCRIPT_DIR/README.md" "$SCRIPT_DIR/LICENSE" "$DIST_DIR/"
 
-# Copy GStreamer runtime libs
 for lib in libgstvideo-1.0-0 libgstsdp-1.0-0 libgstpbutils-1.0-0 \
            libgstaudio-1.0-0 libgsttag-1.0-0 libgstrtp-1.0-0 \
            libgstgl-1.0-0 libgstcodecparsers-1.0-0 liborc-0.4-0; do
     cp /mingw64/bin/${lib}.dll "$DIST_DIR/"
 done
 
-# FFmpeg's avcodec can import xvidcore.dll. On the build PC, ldd may resolve
-# it from Windows/System32, so copy the MinGW runtime explicitly for portable
-# installs on machines without that system DLL.
 cp /mingw64/bin/xvidcore.dll "$DIST_DIR/"
 
-# Copy GStreamer plugins
 for plugin in libgstcoreelements libgstplayback libgstvideoconvertscale \
               libgstautodetect libgstaudioconvert libgstaudioresample \
               libgstvolume libgsttypefindfunctions libgstapp \
@@ -86,13 +78,15 @@ for plugin in libgstcoreelements libgstplayback libgstvideoconvertscale \
     cp /mingw64/lib/gstreamer-1.0/${plugin}.dll "$DIST_DIR/lib/gstreamer-1.0/"
 done
 
-# Build the standalone tray launcher. This uses the regular Windows Python
-# installation, not MSYS2's build Python. The resulting executable bundles
-# pystray and Pillow so users do not need Python or pip-installed packages.
-TRAY_PYTHON="/c/Python311/python.exe"
-if [ ! -f "$TRAY_PYTHON" ]; then
-    TRAY_PYTHON="$(command -v python.exe || true)"
+# CI can provide TRAY_PYTHON explicitly. Otherwise retain the local-build fallback.
+if [ -z "${TRAY_PYTHON:-}" ]; then
+    TRAY_PYTHON="/c/Python311/python.exe"
+    if [ ! -f "$TRAY_PYTHON" ]; then
+        TRAY_PYTHON="$(command -v python.exe || true)"
+    fi
 fi
+
+echo "Tray Python: ${TRAY_PYTHON:-<none>}"
 if [ -n "$TRAY_PYTHON" ] && "$TRAY_PYTHON" -m PyInstaller --version >/dev/null 2>&1; then
     echo "=== Building standalone tray launcher ==="
     ICON_ICO_WIN="$(cygpath -w "$SCRIPT_DIR/assets/UxPlayEnhanced.ico")"
@@ -111,14 +105,11 @@ else
     exit 1
 fi
 
-# Copy launcher files, skipping source-checkout cache directories.
 for launcher_file in "$SCRIPT_DIR"/launcher/*; do
     [ -f "$launcher_file" ] || continue
     cp "$launcher_file" "$DIST_DIR/"
 done
 
-# Resolve the complete import graph directly from the selected MinGW runtime;
-# do not let ldd resolve third-party libraries from this PC's System32 or PATH.
 "$TRAY_PYTHON" "$SCRIPT_DIR/scripts/verify_package.py" "$(cygpath -w "$DIST_DIR")" \
     --runtime-dir "$(cygpath -w /mingw64/bin)"
 
