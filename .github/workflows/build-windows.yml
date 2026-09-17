@@ -1,0 +1,61 @@
+name: Build Windows package
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - uxplay-1.73.7
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            make
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-gstreamer
+            mingw-w64-x86_64-gst-plugins-base
+            mingw-w64-x86_64-gst-plugins-good
+            mingw-w64-x86_64-gst-plugins-bad
+            mingw-w64-x86_64-gst-libav
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-libplist
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-python
+
+      - name: Install tray build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller pystray pillow pefile
+
+      - name: Build UxPlayEnhanced
+        run: bash ./build.sh
+
+      - name: Verify UxPlay version
+        run: |
+          ./dist/UxPlayEnhanced/uxplay.exe -h 2>&1 | head -n 5 || true
+
+      - name: Create ZIP
+        shell: pwsh
+        run: Compress-Archive -Path dist/UxPlayEnhanced/* -DestinationPath UxPlayEnhanced-1.1.1-UxPlay-1.73.7.zip -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UxPlayEnhanced-1.1.1-UxPlay-1.73.7
+          path: UxPlayEnhanced-1.1.1-UxPlay-1.73.7.zip
+          if-no-files-found: error
