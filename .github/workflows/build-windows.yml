@@ -37,18 +37,23 @@ jobs:
             mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-python
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Install tray build dependencies
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
           python -m pip install pyinstaller pystray pillow pefile
+          "TRAY_PYTHON_WIN=$env:pythonLocation\python.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Build UxPlayEnhanced
         shell: msys2 {0}
         run: |
-          WIN_PY="$(where.exe python | head -n 1 | tr -d '\r')"
-          WIN_PY_MSYS="$(cygpath -u "$WIN_PY")"
-          sed -i "s|TRAY_PYTHON=\"/c/Python311/python.exe\"|TRAY_PYTHON=\"$WIN_PY_MSYS\"|" build.sh
+          export TRAY_PYTHON="$(cygpath -u "$TRAY_PYTHON_WIN")"
+          echo "Using hosted Python: $TRAY_PYTHON"
+          "$TRAY_PYTHON" -m PyInstaller --version
           bash ./build.sh
 
       - name: Verify UxPlay version
