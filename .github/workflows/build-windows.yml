@@ -43,6 +43,16 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyinstaller pystray pillow pefile
 
+      - name: Expose runner Python to build.sh
+        shell: msys2 {0}
+        run: |
+          WIN_PY="$(where.exe python | head -n 1 | tr -d '\r')"
+          WIN_PY_MSYS="$(cygpath -u "$WIN_PY")"
+          mkdir -p /c/Python311
+          cp "$WIN_PY_MSYS" /c/Python311/python.exe
+          WIN_PY_DIR="$(dirname "$WIN_PY_MSYS")"
+          cp -r "$WIN_PY_DIR"/* /c/Python311/
+
       - name: Build UxPlayEnhanced
         run: bash ./build.sh
 
